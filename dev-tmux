@@ -1,6 +1,6 @@
 #!/bin/sh
-tmux new-session 
-tmux split-window -h "watch -n 1 'temp'"
+tmux new-session -s asdf -n myWindow
+#tmux select-window -t myWindow
+tmux split-window -h "watch -n 1 'temp'" 
 tmux split-window -v -p 75
-#tmux new-window 'dev-tmux'
-#tmux -2 attach-session -d
+tmux attach-session -t asdf

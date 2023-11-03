@@ -1,6 +1,6 @@
 #!/bin/sh
 tmux new-session -s dev-tmux -n myWindow
 #tmux select-window -t myWindow
-tmux split-window -h "watch -n 1 'temp'" 
+tmux split-window -h "watch -n 1 'status'" 
 tmux split-window -v -p 75
 tmux attach-session -t dev-tmux

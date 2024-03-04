@@ -2,19 +2,21 @@
 
 # This is a simple startup script for Raspberry Pi
 
+# Specify the path to your log file 
+log_file="/home/spark/bin/RPiBin/logfile.log"
+
+# Capture timestamp 
+timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+
 # Add your commands here
 
-# Example: Start a Python script
-# python3 /path/to/your/script.py
-
-# Example: Start a Node.js application
-# node /path/to/your/app.js
-
+# Execute another .sh file (replace 'other_script.sh' with the actual filename)
 #Starting ngrok
-/home/spark/bin/RPiBin/startNgrok.sh
+source /home/spark/bin/RPiBin/startNgrok.sh >> "$log_file" 2>&1
+#/home/spark/bin/RPiBin/startNgrok.sh
 
 # Start IOT Dashboard
-/home/spark/bin/RPiBin/startIotDashBoard.sh
+source /home/spark/bin/RPiBin/startIotDashBoard.sh >> "$log_file" 2>&1
 
 # Add more commands as needed
 

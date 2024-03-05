@@ -1,0 +1,1 @@
+gcc ./rebootHandler.c -o rebootHandler -lwiringPi

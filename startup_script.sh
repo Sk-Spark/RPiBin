@@ -18,6 +18,9 @@ source /home/spark/bin/RPiBin/startNgrok.sh >> "$log_file" 2>&1
 # Start IOT Dashboard
 source /home/spark/bin/RPiBin/startIotDashBoard.sh >> "$log_file" 2>&1
 
+# Reboot Script
+/home/spark/bin/RPiBin/rebootHandler 2>&1
+
 # Add more commands as needed
 
 # End of script

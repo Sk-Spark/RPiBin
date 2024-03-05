@@ -1,0 +1,42 @@
+#include <stdio.h>
+#include <stdlib.h> // Include for the system function
+#include <wiringPi.h>
+
+#define BUTTON_PIN 1 // GPIO pin number, you can adjust this as needed
+
+void button_pressed()
+{
+    static unsigned long last_interrupt_time = 0;
+    unsigned long interrupt_time = millis();
+
+    // Debounce duration (in milliseconds)
+    if (interrupt_time - last_interrupt_time > 2000) {
+        printf("Button pressed!\n");
+        printf("Rebooting...\n");
+        // system("sudo reboot");
+    }
+    last_interrupt_time = interrupt_time;
+}
+
+
+int main()
+{
+    wiringPiSetup();
+    pinMode(BUTTON_PIN, INPUT);
+    pullUpDnControl(BUTTON_PIN, PUD_UP);
+
+    if (wiringPiISR(BUTTON_PIN, INT_EDGE_FALLING, &button_pressed) < 0)
+    {
+        fprintf(stderr, "Unable to setup ISR\n");
+        return 1;
+    }
+
+    printf("Press the button to reboot...\n");
+
+    while (1)
+    {
+        delay(1000);
+    }
+
+    return 0;
+}

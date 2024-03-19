@@ -13,21 +13,27 @@ const client = mqtt.connect(MQTT_BROKER, {
     password: 'mqtt', // Replace 'password' with your MQTT password
 });
 
-function getAverageCPULoad() {
-    // Get the load average values
-    const loadAverage = os.loadavg();
-    
-    // Get the number of CPU cores
-    const numCores = os.cpus().length;
-    
-    // Calculate the average load across all CPU cores
-    const averageLoad = loadAverage.reduce((sum, load) => sum + load, 0) / loadAverage.length;
-    
-    // Normalize the average load based on the number of CPU cores
-    const normalizedLoad = (averageLoad / numCores) * 100;
-    
-    // Return the average CPU load as a percentage
-    return normalizedLoad.toFixed(2);
+// Function to get current CPU usage using the "top" command
+function getCurrentCpuUsage(callback) {
+    // Execute the "top" command to get CPU usage information
+    exec('top -bn1 | grep \'Cpu(s)\' | awk \'NR==1{print $2 + $4}\'', (error, stdout, stderr) => {
+        if (error) {
+            callback(error);
+            return;
+        }
+
+        if (stderr) {
+            callback(new Error(stderr));
+            return;
+        }
+
+        // Parse the output to extract the CPU usage percentage
+        const cpuUsage = parseFloat(stdout.trim());
+        console.log("stdout.trim(): ",stdout.trim());
+
+        // Pass the current CPU usage percentage to the callback function
+        callback(null, cpuUsage);
+    });
 }
 
 // Function to get disk usage information using the "df" command
@@ -97,20 +103,30 @@ client.on('connect', () => {
 
     // Publish vital information
     setInterval(() => {
-        const cpuLoad = getAverageCPULoad();
+        // const cpuLoad = getAverageCPULoad();
+        // const cpuLoad = os.loadavg()[0];
         const totalMemory = os.totalmem();
         const freeMemory = os.freemem();
         const memoryUsage = ((totalMemory - freeMemory) / totalMemory) * 100;
 
         // Publish CPU load
-        client.publish(cpuLoadDiscoveryPayload.state_topic, String(cpuLoad), { qos: 1});
+        // client.publish(cpuLoadDiscoveryPayload.state_topic, String(cpuLoad), { qos: 1});
+        // console.log("cpu:",cpuLoad);
+
+        getCurrentCpuUsage((err, cpuUsage) => {
+            if (err) {
+                console.error('Error getting CPU usage:', err);
+                return;
+            }
+        
+            // Display the current CPU usage percentage
+            let cpuData = cpuUsage.toFixed(0);
+            console.log('Current CPU Usage:', cpuData + '%');
+            client.publish(cpuLoadDiscoveryPayload.state_topic, String(cpuData), { qos: 1});
+        });
 
         // Publish memory usage
         client.publish(memoryUsageDiscoveryPayload.state_topic, String(Math.round(memoryUsage)), { qos: 1});
-
-        // Publish disk usage
-        // const diskUsagePayload = JSON.stringify({ value: diskUsage });
-        // client.publish(diskUsageDiscoveryPayload.state_topic, String(Math.round(diskUsage)), { qos: 1});
 
         getDiskUsage((err, diskInfo) => {
             if (err) {
@@ -129,6 +145,7 @@ client.on('connect', () => {
                 // console.log('Mountpoint:', info.mountpoint);
                 // console.log('---------------------------------------');
                 client.publish(diskUsageDiscoveryPayload.state_topic, String(info.percentage).replace('%',''), { qos: 1});
+                console.log("Memory usage:", info.percentage);
             });
         });
 

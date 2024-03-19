@@ -1,5 +1,6 @@
 const mqtt = require('mqtt');
 const os = require('os');
+const { exec } = require('child_process');
 
 // MQTT broker details
 const MQTT_BROKER = 'mqtt://mqtt:mqtt@127.0.0.1'; // Replace 'username', 'password', and 'broker-url' with your MQTT credentials and broker URL
@@ -12,6 +13,56 @@ const client = mqtt.connect(MQTT_BROKER, {
     password: 'mqtt', // Replace 'password' with your MQTT password
 });
 
+function getAverageCPULoad() {
+    // Get the load average values
+    const loadAverage = os.loadavg();
+    
+    // Get the number of CPU cores
+    const numCores = os.cpus().length;
+    
+    // Calculate the average load across all CPU cores
+    const averageLoad = loadAverage.reduce((sum, load) => sum + load, 0) / loadAverage.length;
+    
+    // Normalize the average load based on the number of CPU cores
+    const normalizedLoad = (averageLoad / numCores) * 100;
+    
+    // Return the average CPU load as a percentage
+    return normalizedLoad.toFixed(2);
+}
+
+// Function to get disk usage information using the "df" command
+function getDiskUsage(callback) {
+    // Execute the "df" command to get disk usage information
+    exec('df -h /', (error, stdout, stderr) => {
+        if (error) {
+            callback(error);
+            return;
+        }
+
+        if (stderr) {
+            callback(new Error(stderr));
+            return;
+        }
+
+        // Parse the "df" command output to extract disk usage information
+        const lines = stdout.trim().split('\n');
+        const diskInfo = lines.slice(1).map(line => {
+            const [filesystem, size, used, available, percentage, mountpoint] = line.trim().split(/\s+/);
+            const data = {
+                filesystem,
+                size,
+                used,
+                available,
+                percentage,
+                mountpoint
+            };
+            return data;
+        });
+
+        // Pass the disk usage information to the callback function
+        callback(null, diskInfo);
+    });
+}
 
 client.on('connect', () => {
     console.log('Connected to MQTT broker');
@@ -43,25 +94,45 @@ client.on('connect', () => {
         availability_topic: 'rpi/disk/availability',
     };
 
+
     // Publish vital information
     setInterval(() => {
-        const cpuLoad = os.loadavg()[0];
+        const cpuLoad = getAverageCPULoad();
         const totalMemory = os.totalmem();
         const freeMemory = os.freemem();
-        const diskUsage = ((totalMemory - freeMemory) / totalMemory) * 100;
+        const memoryUsage = ((totalMemory - freeMemory) / totalMemory) * 100;
 
         // Publish CPU load
-        const cpuLoadPayload = JSON.stringify({ value: cpuLoad });
-        client.publish(cpuLoadDiscoveryPayload.state_topic, cpuLoadPayload, { qos: 1});
+        client.publish(cpuLoadDiscoveryPayload.state_topic, String(cpuLoad), { qos: 1});
 
         // Publish memory usage
-        const memoryUsagePayload = JSON.stringify({ value: diskUsage });
-        client.publish(memoryUsageDiscoveryPayload.state_topic, memoryUsagePayload, { qos: 1});
+        client.publish(memoryUsageDiscoveryPayload.state_topic, String(Math.round(memoryUsage)), { qos: 1});
 
         // Publish disk usage
-        const diskUsagePayload = JSON.stringify({ value: diskUsage });
-        client.publish(diskUsageDiscoveryPayload.state_topic, diskUsagePayload, { qos: 1});
-    }, 1000); // Publish every 10 seconds
+        // const diskUsagePayload = JSON.stringify({ value: diskUsage });
+        // client.publish(diskUsageDiscoveryPayload.state_topic, String(Math.round(diskUsage)), { qos: 1});
+
+        getDiskUsage((err, diskInfo) => {
+            if (err) {
+                console.error('Error getting disk usage:', err);
+                return;
+            }
+        
+            // Display the disk usage information with sizes in KB
+            // console.log('Disk Usage Information (Sizes in KB):');
+            diskInfo.forEach(info => {
+                // console.log('Filesystem:', info.filesystem);
+                // console.log('Size (KB):', info.size);
+                // console.log('Used (KB):', info.used);
+                // console.log('Available (KB):', info.available);
+                // console.log('Usage Percentage:', info.percentage);
+                // console.log('Mountpoint:', info.mountpoint);
+                // console.log('---------------------------------------');
+                client.publish(diskUsageDiscoveryPayload.state_topic, String(info.percentage).replace('%',''), { qos: 1});
+            });
+        });
+
+    }, 5000); // Publish every 5 seconds
 
     // Publish availability status
     setInterval(() => {
@@ -69,12 +140,10 @@ client.on('connect', () => {
         client.publish('homeassistant/sensor/rpi_memory_usage/config', JSON.stringify(memoryUsageDiscoveryPayload), { qos: 1, retain: true });
         client.publish('homeassistant/sensor/rpi_disk_usage/config', JSON.stringify(diskUsageDiscoveryPayload), { qos: 1, retain: true });
 
-        const isOnline = true; // Assuming the Raspberry Pi is always online for simplicity
-        const availabilityPayload = JSON.stringify({ online: isOnline });
-        client.publish(cpuLoadDiscoveryPayload.availability_topic, availabilityPayload, { qos: 1});
-        client.publish(memoryUsageDiscoveryPayload.availability_topic, availabilityPayload, { qos: 1});
-        client.publish(diskUsageDiscoveryPayload.availability_topic, availabilityPayload, { qos: 1});
-    }, 1000); // Publish every 1 minute for availability status
+        client.publish(cpuLoadDiscoveryPayload.availability_topic, "online", { qos: 1});
+        client.publish(memoryUsageDiscoveryPayload.availability_topic, "online", { qos: 1});
+        client.publish(diskUsageDiscoveryPayload.availability_topic, "online", { qos: 1});
+    }, 10000); // Publish every 10 minute for availability status
 });
 
 client.on('error', (err) => {

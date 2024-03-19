@@ -1,0 +1,27 @@
+homeassistant / sensor / bedroomtemp / config
+{
+    "name": "MQTT Temperature",
+    "unique_id": "mqtttemp01a",
+    "state_topic": "stat/mydevice/temperature",
+    "unit_of_measurement": "°F"
+}
+
+homeassistant/sensor/rpi_disk_usage/config
+{
+    "name": "RPi Disk Usage",
+    "unique_id": "rpi_disk_usage",
+    "state_topic": "rpi/disk/state",
+    "device_class": "disk",
+    "unit_of_measurement": "%",
+    "icon": "mdi:memory",
+    "availability_topic": "rpi/disk/availability",
+}
+
+{
+    "name": "RPi Disk Usage",
+    "unique_id": "rpi_disk_usage",
+    "state_topic": "rpi/disk/state",
+    "unit_of_measurement": "%",
+    "device_class": "disk",
+    "availability_topic": "rpi/disk/availability"
+}

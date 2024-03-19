@@ -2,44 +2,47 @@
 #include <stdlib.h>
 #include <wiringPi.h>
 
-#define BUTTON_PIN 1
-#define LONG_PRESS_DURATION 3000 // 3 seconds in milliseconds
+#define GPIO_PIN 18
+#define REBOOT_TIME_THRESHOLD 5 // in seconds
 
-void button_pressed()
-{
-    static unsigned long press_start_time = 0;
-    unsigned long press_duration;
-
-    press_start_time = millis();
-    while(digitalRead(BUTTON_PIN) == LOW){
-        delay(500);
-        press_duration = millis() - press_start_time;
-        if( press_duration > LONG_PRESS_DURATION ){
-            printf(" Rebooting...\n");
-            system("sudo reboot");
-        }
-    }
-
-    press_start_time = 0;    
-}
-
-int main()
-{
-    wiringPiSetup();
-    pinMode(BUTTON_PIN, INPUT);
-    pullUpDnControl(BUTTON_PIN, PUD_UP);
-
-    if (wiringPiISR(BUTTON_PIN, INT_EDGE_FALLING, &button_pressed) < 0)
-    {
-        fprintf(stderr, "Unable to setup ISR\n");
+int main() {
+    // Initialize WiringPi library
+    if (wiringPiSetup() == -1) {
+        fprintf(stderr, "Failed to initialize WiringPi\n");
         return 1;
     }
 
-    printf("Press and hold the button for 3 seconds to reboot...\n");
+    // Set GPIO pin mode to input
+    pinMode(GPIO_PIN, INPUT);
 
-    while (1)
-    {
-        delay(1000);
+    int previousState = LOW;
+    int currentState;
+    unsigned long startTime = 0;
+
+    while (1) {
+        currentState = digitalRead(GPIO_PIN);
+
+        if (currentState != previousState) {
+            startTime = millis(); // Reset timer when button state changes
+        }
+
+        if (currentState == HIGH && previousState == LOW) {
+            startTime = millis(); // Start timer when button is pressed
+        }
+
+        if (currentState == LOW && previousState == HIGH) {
+            unsigned long elapsedTime = millis() - startTime;
+
+            if (elapsedTime >= (REBOOT_TIME_THRESHOLD * 1000)) {
+                printf("Button pressed for more than 5 seconds. Rebooting...\n");
+                delay(1000); // Delay for stability
+                system("sudo reboot"); // Reboot Raspberry Pi
+                break; // Exit loop after reboot command
+            }
+        }
+
+        previousState = currentState;
+        delay(500); // Delay for debouncing and smooth operation
     }
 
     return 0;

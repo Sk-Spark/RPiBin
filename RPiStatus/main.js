@@ -6,6 +6,8 @@ const { exec } = require('child_process');
 const MQTT_BROKER = 'mqtt://mqtt:mqtt@127.0.0.1'; // Replace 'username', 'password', and 'broker-url' with your MQTT credentials and broker URL
 const MQTT_CLIENT_ID = 'rpi-mqtt-client';
 const QOS = 0;
+let CPU_LOAD = 0;
+let CPU_DATA_INDEX = 0;
 
 const client = mqtt.connect(MQTT_BROKER, {
     clientId: MQTT_CLIENT_ID,
@@ -29,7 +31,7 @@ function getCurrentCpuUsage(callback) {
 
         // Parse the output to extract the CPU usage percentage
         const cpuUsage = parseFloat(stdout.trim());
-        console.log("stdout.trim(): ",stdout.trim());
+        console.log("cpu:",stdout.trim());
 
         // Pass the current CPU usage percentage to the callback function
         callback(null, cpuUsage);
@@ -69,6 +71,22 @@ function getDiskUsage(callback) {
         callback(null, diskInfo);
     });
 }
+
+setInterval(()=>{
+    getCurrentCpuUsage((err, cpuUsage) => {
+        if (err) {
+            console.error('Error getting CPU usage:', err);
+            return;
+        }
+    
+        // Display the current CPU usage percentage
+        let cpuData = Number(cpuUsage.toFixed(0));
+        CPU_LOAD += cpuData;
+        CPU_DATA_INDEX +=1;
+        // console.log('Current CPU Usage:', cpuData + '%');
+        // client.publish(cpuLoadDiscoveryPayload.state_topic, String(cpuData), { qos: 1});
+    });
+},1000);
 
 client.on('connect', () => {
     console.log('Connected to MQTT broker');
@@ -113,17 +131,21 @@ client.on('connect', () => {
         // client.publish(cpuLoadDiscoveryPayload.state_topic, String(cpuLoad), { qos: 1});
         // console.log("cpu:",cpuLoad);
 
-        getCurrentCpuUsage((err, cpuUsage) => {
-            if (err) {
-                console.error('Error getting CPU usage:', err);
-                return;
-            }
+        // getCurrentCpuUsage((err, cpuUsage) => {
+        //     if (err) {
+        //         console.error('Error getting CPU usage:', err);
+        //         return;
+        //     }
         
-            // Display the current CPU usage percentage
-            let cpuData = cpuUsage.toFixed(0);
-            console.log('Current CPU Usage:', cpuData + '%');
-            client.publish(cpuLoadDiscoveryPayload.state_topic, String(cpuData), { qos: 1});
-        });
+        //     // Display the current CPU usage percentage
+        //     let cpuData = cpuUsage.toFixed(0);
+        //     console.log('Current CPU Usage:', cpuData + '%');
+        //     client.publish(cpuLoadDiscoveryPayload.state_topic, String(cpuData), { qos: 1});
+        // });
+        let cpuData = CPU_LOAD / CPU_DATA_INDEX;
+        CPU_LOAD = CPU_DATA_INDEX = 0;
+        console.log('Current CPU Usage:', cpuData.toFixed(0) + '%');
+        client.publish(cpuLoadDiscoveryPayload.state_topic, String(cpuData.toFixed(0)), { qos: 1});
 
         // Publish memory usage
         client.publish(memoryUsageDiscoveryPayload.state_topic, String(Math.round(memoryUsage)), { qos: 1});

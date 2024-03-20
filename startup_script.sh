@@ -1,26 +1,25 @@
 #!/bin/bash
-
 # This is a simple startup script for Raspberry Pi
 
 # Specify the path to your log file 
 log_file="/home/spark/bin/RPiBin/logfile.log"
 
-# Capture timestamp 
-timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+exec 3>&1 1>>"$log_file" 2>&1
+echo -e "--------------------------------"
+trap "echo 'ERROR: An error occurred during execution, check log $log_file for details.' >&3" ERR
+trap '{ set +x; } 2>/dev/null; echo -ne "\n[$(date -u)] \n"; set -x' DEBUG
 
 # Add your commands here
 
-# Execute another .sh file (replace 'other_script.sh' with the actual filename)
 #Starting ngrok
-source /home/spark/bin/RPiBin/startNgrok.sh >> "$log_file" 2>&1
+source /home/spark/bin/RPiBin/startNgrok.sh 
 #/home/spark/bin/RPiBin/startNgrok.sh
 
 # Start IOT Dashboard
-source /home/spark/bin/RPiBin/startIotDashBoard.sh >> "$log_file" 2>&1
+# source /home/spark/bin/RPiBin/startIotDashBoard.sh 
 
 # Reboot Script
-/home/spark/bin/RPiBin/rebootHandler 2>&1
-
-# Add more commands as needed
+/home/spark/bin/RPiBin/rebootHandler
 
 # End of script
+echo -e "Start up script execution completed!!!\n--------------------------------"

@@ -18,6 +18,9 @@ source /home/spark/bin/RPiBin/startNgrok.sh
 # Start IOT Dashboard
 # source /home/spark/bin/RPiBin/startIotDashBoard.sh 
 
+# Start MQTT Client
+source /home/spark/bin/RPiBin/startMqttClient.sh
+
 # Reboot Script
 /home/spark/bin/RPiBin/rebootHandler
 

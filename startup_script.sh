@@ -19,10 +19,10 @@ source /home/spark/bin/RPiBin/startNgrok.sh
 # source /home/spark/bin/RPiBin/startIotDashBoard.sh 
 
 # Start MQTT Client
-source /home/spark/bin/RPiBin/startMqttClient.sh
+sudo -u spark /home/spark/bin/RPiBin/startMqttClient.sh
 
 # Reboot Script
-/home/spark/bin/RPiBin/rebootHandler
+# /home/spark/bin/RPiBin/rebootHandler
 
 # End of script
 echo -e "Start up script execution completed!!!\n--------------------------------"

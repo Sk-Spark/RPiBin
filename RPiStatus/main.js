@@ -2,6 +2,10 @@ const mqtt = require('mqtt');
 const os = require('os');
 const { exec } = require('child_process');
 
+const publishEvent = false;
+const publishError = true;
+const publishTrace = true;
+
 // MQTT broker details
 const MQTT_BROKER = 'mqtt://mqtt:mqtt@127.0.0.1'; // Replace 'username', 'password', and 'broker-url' with your MQTT credentials and broker URL
 const MQTT_CLIENT_ID = 'rpi-mqtt-client';
@@ -9,11 +13,31 @@ const QOS = 0;
 let CPU_LOAD = 0;
 let CPU_DATA_INDEX = 0;
 
+const logEvent = (...args) => {
+    if (publishEvent) {
+        console.log(...args);
+    }
+}
+
+const logError = (...args) => {
+    if (publishError) {
+        console.error(...args);
+    }
+}
+
+const logTrace = (...args) =>{
+    if(publishTrace){
+        console.log(...args);
+    }
+}
+
 const client = mqtt.connect(MQTT_BROKER, {
     clientId: MQTT_CLIENT_ID,
     username: 'mqtt', // Replace 'username' with your MQTT username
     password: 'mqtt', // Replace 'password' with your MQTT password
 });
+
+logTrace('Connecting to mqtt broker...');
 
 // Function to get current CPU usage using the "top" command
 function getCurrentCpuUsage(callback) {
@@ -31,7 +55,7 @@ function getCurrentCpuUsage(callback) {
 
         // Parse the output to extract the CPU usage percentage
         const cpuUsage = parseFloat(stdout.trim());
-        console.log("cpu:",stdout.trim());
+        logEvent("cpu:",stdout.trim());
 
         // Pass the current CPU usage percentage to the callback function
         callback(null, cpuUsage);
@@ -75,7 +99,7 @@ function getDiskUsage(callback) {
 setInterval(()=>{
     getCurrentCpuUsage((err, cpuUsage) => {
         if (err) {
-            console.error('Error getting CPU usage:', err);
+            logError('Error getting CPU usage:', err);
             return;
         }
     
@@ -83,13 +107,11 @@ setInterval(()=>{
         let cpuData = Number(cpuUsage.toFixed(0));
         CPU_LOAD += cpuData;
         CPU_DATA_INDEX +=1;
-        // console.log('Current CPU Usage:', cpuData + '%');
-        // client.publish(cpuLoadDiscoveryPayload.state_topic, String(cpuData), { qos: 1});
     });
 },1000);
 
 client.on('connect', () => {
-    console.log('Connected to MQTT broker');
+    logTrace('Connected to MQTT broker');
 
     // Publish auto-discovery message for CPU load sensor
     const cpuLoadDiscoveryPayload = {
@@ -121,30 +143,14 @@ client.on('connect', () => {
 
     // Publish vital information
     setInterval(() => {
-        // const cpuLoad = getAverageCPULoad();
-        // const cpuLoad = os.loadavg()[0];
         const totalMemory = os.totalmem();
         const freeMemory = os.freemem();
         const memoryUsage = ((totalMemory - freeMemory) / totalMemory) * 100;
 
         // Publish CPU load
-        // client.publish(cpuLoadDiscoveryPayload.state_topic, String(cpuLoad), { qos: 1});
-        // console.log("cpu:",cpuLoad);
-
-        // getCurrentCpuUsage((err, cpuUsage) => {
-        //     if (err) {
-        //         console.error('Error getting CPU usage:', err);
-        //         return;
-        //     }
-        
-        //     // Display the current CPU usage percentage
-        //     let cpuData = cpuUsage.toFixed(0);
-        //     console.log('Current CPU Usage:', cpuData + '%');
-        //     client.publish(cpuLoadDiscoveryPayload.state_topic, String(cpuData), { qos: 1});
-        // });
         let cpuData = CPU_LOAD / CPU_DATA_INDEX;
         CPU_LOAD = CPU_DATA_INDEX = 0;
-        console.log('Current CPU Usage:', cpuData.toFixed(0) + '%');
+        logTrace('CPU Usage:', cpuData.toFixed(0) + '%');
         client.publish(cpuLoadDiscoveryPayload.state_topic, String(cpuData.toFixed(0)), { qos: 1});
 
         // Publish memory usage
@@ -157,17 +163,9 @@ client.on('connect', () => {
             }
         
             // Display the disk usage information with sizes in KB
-            // console.log('Disk Usage Information (Sizes in KB):');
-            diskInfo.forEach(info => {
-                // console.log('Filesystem:', info.filesystem);
-                // console.log('Size (KB):', info.size);
-                // console.log('Used (KB):', info.used);
-                // console.log('Available (KB):', info.available);
-                // console.log('Usage Percentage:', info.percentage);
-                // console.log('Mountpoint:', info.mountpoint);
-                // console.log('---------------------------------------');
+            diskInfo.forEach(info => {                
                 client.publish(diskUsageDiscoveryPayload.state_topic, String(info.percentage).replace('%',''), { qos: 1});
-                console.log("Memory usage:", info.percentage);
+                logTrace("Memory usage:", info.percentage);
             });
         });
 
@@ -186,13 +184,13 @@ client.on('connect', () => {
 });
 
 client.on('error', (err) => {
-    console.error('Error connecting to MQTT broker:', err);
+    logError('Error connecting to MQTT broker:', err);
 });
 
 client.on('offline', () => {
-    console.log('MQTT client offline');
+    logEvent('MQTT client offline');
 });
 
 client.on('close', () => {
-    console.log('MQTT client closed');
+    logEvent('MQTT client closed');
 });
